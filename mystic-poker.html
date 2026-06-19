@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mystic Poker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --felt: #1a4a2e;
+  --felt-light: #1f5535;
+  --felt-dark: #122e1d;
+  --gold: #c9a227;
+  --gold-light: #e8c84a;
+  --gold-dark: #8a6f18;
+  --card-bg: #fdf6e3;
+  --card-shadow: rgba(0,0,0,0.5);
+  --red: #c0392b;
+  --black: #1a1a1a;
+  --chip-gold: #d4a017;
+  --chip-blue: #2c5f8a;
+  --chip-red: #8b2020;
+  --text-light: #f0e6c8;
+  --text-muted: #a89060;
+  --moon: #9b59b6;
+  --storm: #2980b9;
+  --blaze: #e74c3c;
+  --frost: #1abc9c;
+  --star: #f39c12;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0d1f15;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--text-light);
+  background-image: radial-gradient(ellipse at 50% 0%, #1a3a25 0%, #0d1f15 70%);
+}
+
+/* ── TABLE ── */
+#table {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  position: relative;
+}
+
+#table::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, var(--felt-light) 0%, var(--felt) 50%, var(--felt-dark) 100%);
+  z-index: -1;
+}
+
+/* felt texture lines */
+#table::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg, transparent, transparent 3px, rgba(255,255,255,.012) 3px, rgba(255,255,255,.012) 4px
+  ),repeating-linear-gradient(
+    0deg, transparent, transparent 3px, rgba(255,255,255,.012) 3px, rgba(255,255,255,.012) 4px
+  );
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ── HEADER ── */
+h1 {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(24px, 4vw, 42px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  text-shadow: 0 0 30px rgba(201,162,39,0.5), 0 2px 4px rgba(0,0,0,0.8);
+  margin-bottom: 4px;
+  text-align: center;
+}
+.subtitle {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* ── SCOREBOARD ── */
+.scoreboard {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.score-block {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(201,162,39,0.25);
+  border-radius: 10px;
+  padding: 8px 16px;
+  text-align: center;
+  min-width: 90px;
+}
+.score-label {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.score-value {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gold);
+}
+.score-value.small { font-size: 13px; }
+
+/* pot highlight */
+.score-block.pot-block { border-color: rgba(201,162,39,0.6); background: rgba(201,162,39,0.1); }
+
+/* ── PHASE RIBBON ── */
+#phase-ribbon {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-light);
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(201,162,39,0.2);
+  border-radius: 20px;
+  padding: 4px 18px;
+  margin-bottom: 14px;
+  transition: all .3s;
+}
+
+/* ── HAND ZONES ── */
+.zone-label {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.hand-zone {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: 100px;
+  align-items: flex-end;
+  padding: 8px;
+}
+
+.zone-container {
+  background: rgba(0,0,0,0.2);
+  border: 1px dashed rgba(201,162,39,0.15);
+  border-radius: 14px;
+  padding: 10px 16px 12px;
+  width: 100%;
+  max-width: 680px;
+  margin-bottom: 10px;
+}
+.zone-container.community-zone { max-width: 580px; }
+
+/* ── CARDS ── */
+.card-wrap {
+  position: relative;
+  width: 70px;
+  height: 100px;
+  perspective: 600px;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.card-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease;
+}
+
+.card-wrap.flipping .card-inner { transform: rotateY(90deg); }
+.card-wrap.flipped .card-inner { transform: rotateY(0deg); }
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* Card SVG face */
+.card-svg {
+  width: 100%;
+  height: 100%;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1.5px solid #ddd;
+  box-shadow: 2px 4px 12px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.5);
+  display: block;
+  transition: transform .2s, box-shadow .2s;
+}
+
+.card-wrap.selectable { cursor: pointer; }
+.card-wrap.selectable:hover .card-svg { transform: translateY(-8px); box-shadow: 2px 12px 20px rgba(0,0,0,0.7); }
+.card-wrap.selected .card-svg { transform: translateY(-14px); box-shadow: 0 0 0 3px #9b59b6, 2px 14px 20px rgba(0,0,0,0.7); }
+
+/* Special glow */
+.card-wrap.has-power .card-svg { box-shadow: 2px 4px 12px rgba(0,0,0,0.6), 0 0 14px rgba(201,162,39,0.6), inset 0 0 0 1px rgba(255,255,255,0.5); }
+
+/* Card back */
+.card-back {
+  width: 70px;
+  height: 100px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1a1a6e 0%, #2c2c8e 40%, #1a1a6e 100%);
+  border: 2px solid #4040aa;
+  box-shadow: 2px 4px 12px rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+.card-back-pattern {
+  width: 54px;
+  height: 84px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background-image: repeating-linear-gradient(
+    45deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px, transparent 2px, transparent 8px
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+/* Power badge overlay */
+.power-pip {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 1px 2px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Peeked card */
+.card-wrap.peeked .card-svg { box-shadow: 2px 4px 12px rgba(0,0,0,0.6), 0 0 16px rgba(243,156,18,0.8); }
+
+/* Mooned card */
+.card-wrap.mooned .card-svg { filter: brightness(0.4) hue-rotate(200deg); }
+.card-wrap.mooned::after {
+  content: '🌙';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ── ACTIONS ── */
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 14px 0 10px;
+}
+
+.btn {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: all .18s;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0);
+  transition: background .18s;
+}
+.btn:hover::after { background: rgba(255,255,255,0.08); }
+.btn:active { transform: scale(0.96); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+.btn-deal {
+  background: linear-gradient(135deg, #b8870a, #c9a227, #e8c84a);
+  border-color: #e8c84a;
+  color: #1a0e00;
+  font-size: 13px;
+  padding: 11px 32px;
+  box-shadow: 0 0 18px rgba(201,162,39,0.4);
+}
+.btn-deal:hover { box-shadow: 0 0 28px rgba(201,162,39,0.7); }
+
+.btn-check {
+  background: rgba(44,95,138,0.3);
+  border-color: #2c5f8a;
+  color: #7ab8e8;
+}
+.btn-call {
+  background: rgba(39,174,96,0.25);
+  border-color: #27ae60;
+  color: #5dde8e;
+}
+.btn-raise {
+  background: rgba(230,126,34,0.25);
+  border-color: #e67e22;
+  color: #f0a060;
+}
+.btn-fold {
+  background: rgba(192,57,43,0.25);
+  border-color: #c0392b;
+  color: #e87070;
+}
+.btn-power {
+  background: rgba(155,89,182,0.25);
+  border-color: #9b59b6;
+  color: #c990ef;
+  box-shadow: 0 0 12px rgba(155,89,182,0.3);
+}
+.btn-power.has-power { box-shadow: 0 0 18px rgba(201,162,39,0.6); border-color: var(--gold); color: var(--gold); }
+
+/* ── MESSAGE BOX ── */
+#msg-box {
+  min-height: 52px;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  padding: 10px 20px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 10px;
+  border: 1px solid rgba(201,162,39,0.2);
+  margin-bottom: 12px;
+  transition: all .3s;
+}
+#msg-main {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 2px;
+}
+#msg-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+#msg-box.win { border-color: #27ae60; background: rgba(39,174,96,0.1); }
+#msg-box.win #msg-main { color: #5dde8e; }
+#msg-box.lose { border-color: #c0392b; background: rgba(192,57,43,0.1); }
+#msg-box.lose #msg-main { color: #e87070; }
+
+/* ── HAND RANK ── */
+#hand-rank-display {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-align: center;
+  min-height: 18px;
+  margin-bottom: 8px;
+}
+
+/* ── POWER LEGEND ── */
+.legend {
+  max-width: 600px;
+  width: 100%;
+  margin-top: 16px;
+}
+details summary {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 0;
+  list-style: none;
+  text-align: center;
+}
+details summary::-webkit-details-marker { display: none; }
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.legend-card {
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.legend-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.legend-name {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.legend-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+/* ── CHIP ANIMATION ── */
+@keyframes chipFly {
+  0% { transform: scale(0) translateY(0); opacity: 0; }
+  30% { transform: scale(1.3) translateY(-30px); opacity: 1; }
+  100% { transform: scale(0.8) translateY(-80px); opacity: 0; }
+}
+.chip-anim {
+  position: fixed;
+  pointer-events: none;
+  font-size: 20px;
+  z-index: 100;
+  animation: chipFly 0.8s ease forwards;
+}
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-80px);
+  background: rgba(0,0,0,0.85);
+  border: 1px solid var(--gold);
+  border-radius: 30px;
+  padding: 10px 28px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--gold);
+  z-index: 200;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 0 20px rgba(201,162,39,0.4);
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── POWER MODAL ── */
+#power-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 150;
+  align-items: center;
+  justify-content: center;
+}
+#power-modal.open { display: flex; }
+.modal-box {
+  background: #0f2d1c;
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 0 40px rgba(201,162,39,0.3);
+}
+.modal-title {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 16px;
+}
+.power-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.power-option:hover { background: rgba(255,255,255,0.07); }
+.power-option .emo { font-size: 24px; }
+.power-option .pname {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: var(--gold);
+  margin-bottom: 2px;
+}
+.power-option .pdesc { font-size: 11px; color: var(--text-muted); }
+.btn-cancel {
+  width: 100%;
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+.btn-cancel:hover { background: rgba(255,255,255,0.06); }
+
+/* ── AI THINKING ── */
+.thinking-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.thinking-dots span {
+  width: 5px; height: 5px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: dot-bounce 1.2s infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay: .2s; }
+.thinking-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dot-bounce {
+  0%,80%,100% { transform: scale(0.6); opacity:.4; }
+  40% { transform: scale(1); opacity:1; }
+}
+
+/* Round winner splash */
+#winner-splash {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  z-index: 120;
+  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+}
+#winner-splash.show {
+  display: flex;
+  animation: splash-fade 2.5s ease forwards;
+}
+@keyframes splash-fade {
+  0% { background: rgba(0,0,0,0); }
+  15% { background: rgba(0,0,0,0.5); }
+  75% { background: rgba(0,0,0,0.5); }
+  100% { background: rgba(0,0,0,0); }
+}
+.splash-text {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(32px, 7vw, 64px);
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 0 40px currentColor;
+  animation: splash-text 2.5s ease forwards;
+}
+@keyframes splash-text {
+  0% { transform: scale(0.5); opacity: 0; }
+  20% { transform: scale(1.05); opacity: 1; }
+  80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 500px) {
+  .card-wrap { width: 58px; height: 84px; }
+  .card-back { width: 58px; height: 84px; }
+  .btn { font-size: 10px; padding: 8px 14px; }
+}
+</style>
+</head>
+<body>
+
+<div id="table">
+  <h1>✦ Mystic Poker ✦</h1>
+  <p class="subtitle">With Special Power Cards</p>
+
+  <div class="scoreboard">
+    <div class="score-block">
+      <div class="score-label">Your Chips</div>
+      <div class="score-value" id="p-chips">1000</div>
+    </div>
+    <div class="score-block pot-block">
+      <div class="score-label">Pot</div>
+      <div class="score-value" id="pot-val">0</div>
+    </div>
+    <div class="score-block">
+      <div class="score-label">AI Chips</div>
+      <div class="score-value" id="ai-chips">1000</div>
+    </div>
+    <div class="score-block">
+      <div class="score-label">Round</div>
+      <div class="score-value small" id="round-val">1</div>
+    </div>
+    <div class="score-block">
+      <div class="score-label">Powers Used</div>
+      <div class="score-value small" id="powers-used">0</div>
+    </div>
+  </div>
+
+  <div id="phase-ribbon">Waiting to Deal</div>
+
+  <!-- AI Hand -->
+  <div class="zone-container">
+    <div class="zone-label">AI Hand</div>
+    <div class="hand-zone" id="ai-hand"></div>
+  </div>
+
+  <!-- Community Cards -->
+  <div class="zone-container community-zone">
+    <div class="zone-label">Community Cards</div>
+    <div class="hand-zone" id="community"></div>
+  </div>
+
+  <!-- Player Hand -->
+  <div class="zone-container">
+    <div class="zone-label">Your Hand &nbsp;<span id="select-hint" style="font-size:9px;color:var(--text-muted)"></span></div>
+    <div class="hand-zone" id="player-hand"></div>
+  </div>
+
+  <div id="hand-rank-display"></div>
+
+  <div class="actions">
+    <button class="btn btn-deal" id="btn-deal" onclick="deal()">Deal Cards</button>
+    <button class="btn btn-check" id="btn-check" onclick="doAction('check')" disabled>Check</button>
+    <button class="btn btn-call" id="btn-call" onclick="doAction('call')" disabled>Call</button>
+    <button class="btn btn-raise" id="btn-raise" onclick="doAction('raise')" disabled>Raise</button>
+    <button class="btn btn-fold" id="btn-fold" onclick="doAction('fold')" disabled>Fold</button>
+    <button class="btn btn-power" id="btn-power" onclick="openPowerModal()" disabled>⚡ Power</button>
+  </div>
+
+  <div id="msg-box">
+    <div id="msg-main">Press Deal to begin a new round.</div>
+    <div id="msg-sub"></div>
+  </div>
+
+  <div class="legend">
+    <details>
+      <summary>▼ &nbsp;SPECIAL CARD POWERS &nbsp;▼</summary>
+      <div class="legend-grid">
+        <div class="legend-card"><div class="legend-icon">🌙</div><div><div class="legend-name" style="color:#9b59b6">Moon</div><div class="legend-desc">Hide one community card — AI can't use it</div></div></div>
+        <div class="legend-card"><div class="legend-icon">⚡</div><div><div class="legend-name" style="color:#2980b9">Storm</div><div class="legend-desc">Swap selected cards for fresh draws</div></div></div>
+        <div class="legend-card"><div class="legend-icon">🔥</div><div><div class="legend-name" style="color:#e74c3c">Blaze</div><div class="legend-desc">Your J, Q, K all become Aces</div></div></div>
+        <div class="legend-card"><div class="legend-icon">❄️</div><div><div class="legend-name" style="color:#1abc9c">Frost</div><div class="legend-desc">Freeze — AI cannot raise this round</div></div></div>
+        <div class="legend-card"><div class="legend-icon">⭐</div><div><div class="legend-name" style="color:#f39c12">Star</div><div class="legend-desc">Peek at one of AI's hole cards</div></div></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- Power Modal -->
+<div id="power-modal">
+  <div class="modal-box">
+    <div class="modal-title">✦ Activate Power Card ✦</div>
+    <div id="power-options"></div>
+    <button class="btn-cancel" onclick="closePowerModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Winner Splash -->
+<div id="winner-splash">
+  <div class="splash-text" id="splash-text"></div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────
+const SUITS = ['S','H','D','C'];
+const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const SUIT_SYM = {S:'♠', H:'♥', D:'♦', C:'♣'};
+const SUIT_COLOR = {S:'#1a1a1a', H:'#c0392b', D:'#c0392b', C:'#1a1a1a'};
+const RANK_VAL = {2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9,'10':10,J:11,Q:12,K:13,A:14};
+const POWERS = {
+  M:{emoji:'🌙', name:'Moon', desc:'Hide one community card — AI cannot use it this round', color:'#9b59b6'},
+  T:{emoji:'⚡', name:'Storm', desc:'Discard selected cards and draw replacements', color:'#2980b9'},
+  B:{emoji:'🔥', name:'Blaze', desc:'Your J, Q, K all become Aces for this round', color:'#e74c3c'},
+  F:{emoji:'❄️', name:'Frost', desc:'Freeze the pot — AI cannot raise this round', color:'#1abc9c'},
+  S:{emoji:'⭐', name:'Star', desc:'Reveal one of AI\'s hidden hole cards', color:'#f39c12'},
+};
+
+// ─── STATE ──────────────────────────────────────
+let G = {
+  playerChips:1000, aiChips:1000, pot:0,
+  playerHand:[], aiHand:[], community:[],
+  phase:'idle', round:1,
+  currentBet:0, playerBet:0, aiBet:0,
+  frostActive:false, blazeActive:false,
+  moonedIdx:-1, peekedIdx:-1,
+  powersUsed:0, revealed:false,
+  deck:[]
+};
+
+// ─── DECK ───────────────────────────────────────
+function makeDeck(){
+  let d=[];
+  for(let s of SUITS) for(let r of RANKS) d.push({r,s,power:null});
+  let pkeys=Object.keys(POWERS);
+  let used=new Set();
+  for(let k of pkeys){
+    let idx;
+    do { idx=Math.floor(Math.random()*d.length); } while(used.has(idx));
+    used.add(idx);
+    d[idx].power=k;
+  }
+  return d;
+}
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    let j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+// ─── CARD SVG BUILDER ───────────────────────────
+function buildCardSVG(card){
+  const c = SUIT_COLOR[card.s];
+  const sym = SUIT_SYM[card.s];
+  const r = card.r;
+  const small = r==='10'?'9':'10';
+
+  // Center pip art
+  function suitPath(x,y,sz){
+    if(card.s==='H'){
+      return `<text x="${x}" y="${y}" font-size="${sz}" text-anchor="middle" fill="${c}">${sym}</text>`;
+    }
+    return `<text x="${x}" y="${y}" font-size="${sz}" text-anchor="middle" fill="${c}">${sym}</text>`;
+  }
+
+  // Build pip grid based on rank
+  let pips='';
+  const rows={
+    '2':[[35,35],[35,75]],
+    '3':[[35,30],[35,55],[35,80]],
+    '4':[[22,35],[48,35],[22,75],[48,75]],
+    '5':[[22,30],[48,30],[35,55],[22,78],[48,78]],
+    '6':[[22,30],[48,30],[22,55],[48,55],[22,78],[48,78]],
+    '7':[[22,26],[48,26],[35,44],[22,60],[48,60],[22,80],[48,80]],
+    '8':[[22,24],[48,24],[35,40],[22,57],[48,57],[35,72],[22,84],[48,84]],
+    '9':[[22,24],[48,24],[22,44],[48,44],[35,55],[22,65],[48,65],[22,84],[48,84]],
+    '10':[[22,22],[48,22],[22,40],[48,40],[35,55],[22,62],[48,62],[22,78],[48,78],[35,95]],
+  };
+
+  if(rows[r]){
+    for(let [x,y] of rows[r]){
+      pips+=`<text x="${x}" y="${y}" font-size="13" text-anchor="middle" dominant-baseline="central" fill="${c}" font-family="Arial">${sym}</text>`;
+    }
+  } else {
+    // Face cards: J Q K A
+    const faceMap={J:'J',Q:'Q',K:'K',A:'A'};
+    if(faceMap[r]){
+      // Draw a decorative face card center
+      pips+=`<rect x="14" y="18" width="42" height="64" rx="4" fill="${c}" opacity="0.08"/>`;
+      pips+=`<text x="35" y="68" font-size="34" text-anchor="middle" dominant-baseline="central" fill="${c}" font-family="Arial" font-weight="bold">${faceMap[r]}</text>`;
+      // small suit in middle
+      pips+=`<text x="35" y="40" font-size="18" text-anchor="middle" dominant-baseline="central" fill="${c}" font-family="Arial">${sym}</text>`;
+    }
+  }
+
+  // Power overlay
+  let powerEl='';
+  if(card.power){
+    const pw=POWERS[card.power];
+    powerEl=`
+      <rect x="0" y="82" width="70" height="18" fill="${pw.color}" opacity="0.85"/>
+      <text x="35" y="91" font-size="8" text-anchor="middle" dominant-baseline="central" fill="white" font-family="Arial" font-weight="bold">${pw.emoji} ${pw.name}</text>
+      <rect x="0" y="0" width="70" height="100" rx="7" fill="none" stroke="${pw.color}" stroke-width="2.5"/>
+    `;
+  }
+
+  return `<svg viewBox="0 0 70 100" xmlns="http://www.w3.org/2000/svg" width="70" height="100">
+    <rect width="70" height="100" rx="7" fill="#fdf6e3"/>
+    <rect x="0.75" y="0.75" width="68.5" height="98.5" rx="6.5" fill="none" stroke="#ccc" stroke-width="0.5"/>
+    <!-- Top left -->
+    <text x="5" y="12" font-size="${small}" fill="${c}" font-family="Arial" font-weight="bold">${r}</text>
+    <text x="5" y="22" font-size="9" fill="${c}" font-family="Arial">${sym}</text>
+    <!-- Bottom right (rotated) -->
+    <g transform="rotate(180,35,50)">
+      <text x="5" y="12" font-size="${small}" fill="${c}" font-family="Arial" font-weight="bold">${r}</text>
+      <text x="5" y="22" font-size="9" fill="${c}" font-family="Arial">${sym}</text>
+    </g>
+    <!-- Center pips -->
+    ${pips}
+    ${powerEl}
+  </svg>`;
+}
+
+function buildCardBack(){
+  return `<svg viewBox="0 0 70 100" xmlns="http://www.w3.org/2000/svg" width="70" height="100">
+    <rect width="70" height="100" rx="7" fill="#1a1a6e"/>
+    <rect x="4" y="4" width="62" height="92" rx="5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <rect x="8" y="8" width="54" height="84" rx="4" fill="url(#bp)"/>
+    <defs>
+      <pattern id="bp" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+        <rect width="8" height="8" fill="#1a1a6e"/>
+        <path d="M0 0L8 8M8 0L0 8" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+      </pattern>
+    </defs>
+    <text x="35" y="55" font-size="28" text-anchor="middle" dominant-baseline="central" fill="rgba(255,255,255,0.15)" font-family="Arial">✦</text>
+  </svg>`;
+}
+
+// ─── CARD ELEMENT ────────────────────────────────
+function makeCardEl(card, hidden=false, idx=null, owner=''){
+  const wrap=document.createElement('div');
+  wrap.className='card-wrap';
+  if(card&&card.power&&!hidden) wrap.classList.add('has-power');
+
+  if(hidden){
+    wrap.innerHTML=buildCardBack();
+    if(owner==='ai'&&G.peekedIdx===idx){
+      wrap.classList.add('peeked');
+      wrap.innerHTML=buildCardSVG(card);
+      wrap.title='⭐ Star: You peeked at this card!';
+    }
+  } else {
+    wrap.innerHTML=buildCardSVG(card);
+    if(owner==='player'&&G.phase!=='idle'&&G.phase!=='showdown'){
+      wrap.classList.add('selectable');
+      wrap.dataset.idx=idx;
+      wrap.onclick=()=>wrap.classList.toggle('selected');
+    }
+    if(owner==='community'&&G.moonedIdx===idx&&!G.revealed){
+      wrap.classList.add('mooned');
+    }
+  }
+  return wrap;
+}
+
+// ─── RENDER ──────────────────────────────────────
+function render(){
+  const ph=document.getElementById('player-hand');
+  const ah=document.getElementById('ai-hand');
+  const ch=document.getElementById('community');
+  ph.innerHTML=''; ah.innerHTML=''; ch.innerHTML='';
+
+  G.playerHand.forEach((c,i)=>ph.appendChild(makeCardEl(c,false,i,'player')));
+  G.aiHand.forEach((c,i)=>{
+    let hide=!G.revealed&&G.peekedIdx!==i;
+    ah.appendChild(makeCardEl(c,hide,i,'ai'));
+  });
+  G.community.forEach((c,i)=>ch.appendChild(makeCardEl(c,false,i,'community')));
+
+  document.getElementById('p-chips').textContent=G.playerChips;
+  document.getElementById('ai-chips').textContent=G.aiChips;
+  document.getElementById('pot-val').textContent=G.pot;
+  document.getElementById('round-val').textContent=G.round;
+  document.getElementById('powers-used').textContent=G.powersUsed;
+
+  const avail=G.playerHand.some(c=>c.power)||G.community.some(c=>c.power);
+  const pb=document.getElementById('btn-power');
+  if(avail) pb.classList.add('has-power'); else pb.classList.remove('has-power');
+
+  // Best hand display
+  if(G.phase!=='idle'){
+    const com=G.community.filter((_,i)=>i!==G.moonedIdx);
+    const hr=evaluateHand([...G.playerHand,...com]);
+    document.getElementById('hand-rank-display').textContent='Current best: '+hr.name;
+  } else {
+    document.getElementById('hand-rank-display').textContent='';
+  }
+}
+
+// ─── BUTTONS ─────────────────────────────────────
+function setButtons(){
+  const p=G.phase;
+  const idle=p==='idle';
+  const show=p==='showdown';
+  const active=!idle&&!show;
+  document.getElementById('btn-deal').disabled=active;
+  document.getElementById('btn-check').disabled=!active||G.currentBet>0;
+  document.getElementById('btn-call').disabled=!active||G.currentBet===0;
+  document.getElementById('btn-raise').disabled=!active||G.frostActive;
+  document.getElementById('btn-fold').disabled=!active;
+  document.getElementById('btn-power').disabled=!active;
+  if(G.currentBet>0){
+    document.getElementById('btn-call').textContent='Call ('+G.currentBet+')';
+  } else {
+    document.getElementById('btn-call').textContent='Call';
+  }
+  document.getElementById('btn-raise').textContent=G.frostActive?'❄️ Frozen':'Raise (100)';
+  const hint=p==='pre-flop'||p==='flop'||p==='turn'||p==='river'?'Click cards to select for ⚡ Storm':'';
+  document.getElementById('select-hint').textContent=hint;
+}
+
+// ─── MESSAGES ────────────────────────────────────
+function setMsg(main, sub='', type=''){
+  document.getElementById('msg-main').textContent=main;
+  document.getElementById('msg-sub').textContent=sub;
+  document.getElementById('msg-box').className='msg-box '+(type||'');
+}
+
+function setPhase(txt){
+  document.getElementById('phase-ribbon').textContent=txt;
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function splash(msg, color){
+  const s=document.getElementById('winner-splash');
+  const st=document.getElementById('splash-text');
+  st.textContent=msg;
+  st.style.color=color||'#c9a227';
+  s.classList.add('show');
+  setTimeout(()=>s.classList.remove('show'),2600);
+}
+
+function chipAnim(x,y){
+  const d=document.createElement('div');
+  d.className='chip-anim'; d.textContent='🪙';
+  d.style.left=x+'px'; d.style.top=y+'px';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),900);
+}
+
+// ─── DEAL ────────────────────────────────────────
+function deal(){
+  if(G.playerChips<=0){
+    G.playerChips=1000; G.aiChips=1000; G.round=1;
+    toast('New game started!');
+  }
+  if(G.playerChips<=0||G.aiChips<=0){
+    toast('Need chips to play!');return;
+  }
+  G.deck=shuffle(makeDeck());
+  G.playerHand=[G.deck.pop(),G.deck.pop()];
+  G.aiHand=[G.deck.pop(),G.deck.pop()];
+  G.community=[];
+  G.phase='pre-flop';
+  G.revealed=false;
+  G.currentBet=50; G.playerBet=0; G.aiBet=0;
+  G.frostActive=false; G.blazeActive=false;
+  G.moonedIdx=-1; G.peekedIdx=-1;
+
+  const ante=Math.min(25,G.playerChips,G.aiChips);
+  G.playerChips-=ante; G.aiChips-=ante; G.pot=ante*2;
+
+  setPhase('Pre-Flop');
+  setMsg('Cards dealt! Ante: '+ante+' each.','AI has bet 50. Call, Raise, or Fold?');
+  render(); setButtons();
+}
+
+// ─── AI LOGIC ────────────────────────────────────
+function aiScore(){
+  const com=G.community.filter((_,i)=>i!==G.moonedIdx);
+  return evaluateHand([...G.aiHand,...com]).score;
+}
+
+function aiDecide(){
+  const sc=aiScore();
+  if(G.frostActive) return 'call';
+  const r=Math.random();
+  if(sc>=6) return r<.75?'raise':'call';
+  if(sc>=4) return r<.5?'call':(r<.7?'raise':'check');
+  if(sc>=2) return r<.55?'check':(r<.8?'call':'fold');
+  return r<.3?'call':(r<.5?'check':'fold');
+}
+
+function aiAct(afterCb){
+  setMsg('AI is thinking…','');
+  setTimeout(()=>{
+    const dec=aiDecide();
+    if(dec==='fold'){
+      G.playerChips+=G.pot; G.pot=0;
+      setMsg('AI folded! You win the pot! 🎉','');
+      splash('You Win! 🎉','#27ae60');
+      G.phase='showdown'; G.round++;
+      render(); setButtons();
+    } else if(dec==='raise'&&!G.frostActive){
+      const raise=Math.min(100,G.aiChips);
+      G.aiChips-=raise; G.pot+=raise;
+      G.currentBet=raise;
+      setMsg('AI raises '+raise+'!','Call, Raise, or Fold?');
+      render(); setButtons();
+      if(afterCb) afterCb();
+    } else {
+      const verb=dec==='call'?'AI calls.':'AI checks.';
+      setMsg(verb,'');
+      render();
+      if(afterCb) afterCb();
+      else setTimeout(nextPhase,500);
+    }
+  },700+Math.random()*400);
+}
+
+// ─── ACTIONS ─────────────────────────────────────
+function doAction(action){
+  if(action==='fold'){
+    G.aiChips+=G.pot; G.pot=0;
+    setMsg('You folded. AI wins the pot.','');
+    splash('AI Wins 😔','#c0392b');
+    G.phase='showdown'; G.round++;
+    render(); setButtons(); return;
+  }
+  if(action==='check'){
+    setMsg('You check.','');
+    render();
+    aiAct(()=>setTimeout(nextPhase,600));
+    return;
+  }
+  if(action==='call'){
+    const pay=Math.min(G.currentBet,G.playerChips);
+    G.playerChips-=pay; G.pot+=pay; G.currentBet=0;
+    setMsg('You call '+pay+'.','');
+    render();
+    setTimeout(nextPhase,600);
+    return;
+  }
+  if(action==='raise'){
+    if(G.frostActive){toast('❄️ Frost: Raises are frozen!');return;}
+    const raise=Math.min(100,G.playerChips);
+    G.playerChips-=raise; G.pot+=raise; G.currentBet=raise;
+    setMsg('You raise '+raise+'!','Waiting for AI…');
+    render();
+    setTimeout(()=>{
+      const aiPay=Math.min(raise,G.aiChips);
+      G.aiChips-=aiPay; G.pot+=aiPay;
+      G.currentBet=0;
+      setMsg('AI calls your raise.','');
+      render();
+      setTimeout(nextPhase,600);
+    },800);
+  }
+}
+
+// ─── PHASES ──────────────────────────────────────
+function nextPhase(){
+  G.currentBet=0; G.playerBet=0; G.aiBet=0;
+  if(G.phase==='pre-flop'){
+    G.community=[G.deck.pop(),G.deck.pop(),G.deck.pop()];
+    G.phase='flop';
+    setPhase('The Flop');
+    setMsg('Flop revealed!','Check or place a bet.');
+    render(); setButtons();
+    setTimeout(()=>aiAct(),700);
+  } else if(G.phase==='flop'){
+    G.community.push(G.deck.pop());
+    G.phase='turn';
+    setPhase('The Turn');
+    setMsg('Turn card revealed!','');
+    render(); setButtons();
+    setTimeout(()=>aiAct(),700);
+  } else if(G.phase==='turn'){
+    G.community.push(G.deck.pop());
+    G.phase='river';
+    setPhase('The River — Final Betting');
+    setMsg('River card dealt!','Last chance to bet.');
+    render(); setButtons();
+    setTimeout(()=>aiAct(),700);
+  } else if(G.phase==='river'){
+    showdown();
+  }
+}
+
+// ─── SHOWDOWN ────────────────────────────────────
+function showdown(){
+  G.phase='showdown';
+  G.revealed=true;
+  const com=G.community.filter((_,i)=>i!==G.moonedIdx);
+  const ps=evaluateHand([...G.playerHand,...com]);
+  const as=evaluateHand([...G.aiHand,...com]);
+  let msg,sub,type,splashMsg,splashColor;
+  if(ps.score>as.score){
+    G.playerChips+=G.pot; G.pot=0;
+    msg='You win! 🎉'; sub=ps.name+' beats '+as.name;
+    type='win'; splashMsg='You Win! 🎉'; splashColor='#27ae60';
+  } else if(as.score>ps.score){
+    G.aiChips+=G.pot; G.pot=0;
+    msg='AI wins 😔'; sub=as.name+' beats '+ps.name;
+    type='lose'; splashMsg='AI Wins 😔'; splashColor='#c0392b';
+  } else {
+    const h=Math.floor(G.pot/2);
+    G.playerChips+=h; G.aiChips+=h; G.pot=0;
+    msg='Tie game!'; sub=ps.name+' vs '+as.name+' — pot split';
+    type=''; splashMsg='Tie! 🤝'; splashColor='#c9a227';
+  }
+  G.round++;
+  setPhase('Showdown');
+  setMsg(msg,sub,type);
+  splash(splashMsg,splashColor);
+  render(); setButtons();
+  setTimeout(()=>document.getElementById('btn-deal').disabled=false,400);
+}
+
+// ─── HAND EVALUATOR ──────────────────────────────
+function evaluateHand(cards){
+  if(!cards||cards.length<2) return {name:'High Card',score:1};
+  const h=cards.slice(0,7);
+  let best={name:'High Card',score:1};
+  function check(combo){
+    if(combo.length<2) return;
+    const vals=combo.map(c=>RANK_VAL[c.r]||0).sort((a,b)=>b-a);
+    const suits=combo.map(c=>c.s);
+    const cnt={};
+    vals.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+    const grps=Object.values(cnt).sort((a,b)=>b-a);
+    const suitCnt={};
+    suits.forEach(s=>suitCnt[s]=(suitCnt[s]||0)+1);
+    const isFlush=Object.values(suitCnt).some(v=>v>=5);
+    const uniq=[...new Set(vals)].sort((a,b)=>b-a);
+    let straight=false;
+    for(let i=0;i<=uniq.length-5;i++){
+      if(uniq[i]-uniq[i+4]===4){straight=true;break;}
+    }
+    if([14,2,3,4,5].every(v=>uniq.includes(v))) straight=true;
+    let sc=1,nm='High Card';
+    if(grps[0]===2&&grps[1]>=1) sc=2,nm='One Pair';
+    if(grps[0]===2&&grps[1]===2) sc=3,nm='Two Pair';
+    if(grps[0]===3&&(grps[1]===1||grps[1]===undefined)) sc=4,nm='Three of a Kind';
+    if(straight&&!isFlush) sc=5,nm='Straight';
+    if(isFlush&&!straight) sc=6,nm='Flush';
+    if(grps[0]===3&&grps[1]===2) sc=7,nm='Full House';
+    if(grps[0]===4) sc=8,nm='Four of a Kind';
+    if(straight&&isFlush) sc=9,nm='Straight Flush';
+    if(sc>best.score) best={name:nm,score:sc};
+  }
+  check(h);
+  // check 5-card combos for accuracy
+  for(let i=0;i<h.length;i++) for(let j=i+1;j<h.length;j++)
+    check(h.filter((_,k)=>k!==i&&k!==j));
+  return best;
+}
+
+// ─── POWER MODAL ─────────────────────────────────
+function openPowerModal(){
+  const modal=document.getElementById('power-modal');
+  const opts=document.getElementById('power-options');
+  opts.innerHTML='';
+  const available=[];
+  G.playerHand.forEach((c,i)=>{if(c.power) available.push({c,i,loc:'hand'});});
+  G.community.forEach((c,i)=>{if(c.power) available.push({c,i,loc:'community'});});
+  if(!available.length){toast('No power cards available!');return;}
+  available.forEach(({c,i,loc})=>{
+    const pw=POWERS[c.power];
+    const div=document.createElement('div');
+    div.className='power-option';
+    div.innerHTML=`<div class="emo">${pw.emoji}</div><div><div class="pname">${pw.name}</div><div class="pdesc">${pw.desc}</div></div>`;
+    div.onclick=()=>activatePower(c,i,loc);
+    opts.appendChild(div);
+  });
+  modal.classList.add('open');
+}
+
+function closePowerModal(){
+  document.getElementById('power-modal').classList.remove('open');
+}
+
+function activatePower(card,idx,loc){
+  closePowerModal();
+  const k=card.power;
+  card.power=null;
+  G.powersUsed++;
+  const pw=POWERS[k];
+  toast(pw.emoji+' '+pw.name+' activated!');
+
+  if(k==='M'){
+    if(G.community.length>0){
+      G.moonedIdx=Math.floor(Math.random()*G.community.length);
+      setMsg('🌙 Moon Power!','One community card is now hidden from AI.');
+    }
+  } else if(k==='T'){
+    const selected=[...document.querySelectorAll('#player-hand .card-wrap.selected')];
+    const indices=selected.map(el=>parseInt(el.dataset.idx)).filter(n=>!isNaN(n));
+    const toSwap=indices.length?indices:[0];
+    toSwap.forEach(i=>{if(G.playerHand[i]) G.playerHand[i]=G.deck.pop();});
+    setMsg('⚡ Storm Power!','Drew '+toSwap.length+' new card(s).');
+  } else if(k==='B'){
+    G.blazeActive=true;
+    G.playerHand=G.playerHand.map(c=>({...c,r:['J','Q','K'].includes(c.r)?'A':c.r}));
+    setMsg('🔥 Blaze Power!','Your face cards are now Aces this round!');
+  } else if(k==='F'){
+    G.frostActive=true;
+    setMsg('❄️ Frost Power!','AI raises are frozen for this round.');
+  } else if(k==='S'){
+    G.peekedIdx=Math.floor(Math.random()*G.aiHand.length);
+    setMsg('⭐ Star Power!','Peeking at one of AI\'s cards…');
+  }
+  render(); setButtons();
+}
+
+// ─── INIT ────────────────────────────────────────
+render(); setButtons();
+setMsg('Press Deal to begin your round.','Special power cards are shuffled into the deck!');
+</script>
+</body>
+</html>
